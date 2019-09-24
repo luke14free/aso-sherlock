@@ -1,0 +1,15 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+pmprophet = "==0.2.8"
+arviz = "*"
+pymc3 = "*"
+jinja2 = "*"
+
+[requires]
+python_version = "3.6"

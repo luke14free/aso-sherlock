@@ -1,0 +1,6 @@
+*.pyc
+*.pyo
+out.html
+Pipfile.lock
+.DS_Store
+.idea
