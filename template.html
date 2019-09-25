@@ -37,7 +37,7 @@
 <div class="list-group" style="width: 300px;">
     {% if textual_model %}<a class="list-group-item" href="#textual-updates">Textual Updates</a>{% endif %}
     {% if visual_model %}<a class="list-group-item" href="#visual-updates">Visual Updates</a>{% endif %}
-    <a class="list-group-item" href="#seasonality-analysis">Seasonality Analysis</a>
+    {% if seasonality[7] %}<a class="list-group-item" href="#seasonality-analysis">Seasonality Analysis</a>{% endif %}
     {% if extra_regressors_plots %}<a class="list-group-item" href="#uplift-analysis">Uplift Analysis</a>{% endif %}
     <a class="list-group-item" href="#summary">Summary</a>
 </div>
@@ -58,6 +58,7 @@
 <img src="{{ visual_model }}" alt="visual_model"/>
 {% endif %}
 
+{% if seasonality[7] %}
 <h3 id="seasonality-analysis">Seasonality Analysis</h3>
 <p>
     Seasonality is a common phenomenon to observe in apps, some make more downloads during the weekdays while other
@@ -71,6 +72,7 @@
 <h4>Weekly Seasonality</h4><img src="{{ seasonality[7] }}" alt="seasonality_7_days"/>
 {% if 30 in seasonality %}<h4>Monthly Seasonality</h4><img src="{{ seasonality[30] }}" alt="seasonality_30days"/>{% endif %}
 {% if 365 in seasonality %}<h4>Yearly Seasonality</h4><img src="{{ seasonality[365] }}" alt="seasonality_365_days"/>{% endif %}
+{% endif %}
 
 {% if extra_regressors_plots %}
 <h3 id="uplift-analysis">Uplift Analysis</h3>

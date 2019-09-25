@@ -179,7 +179,7 @@ def read_input_file(file_path: str) -> pd.DataFrame:
 
 
 def run_sherlock() -> None:
-    template_vars = {}
+    template_vars = {'seasonality': {}}
 
     df = read_input_file(sys.argv[1])
     for unknown_update in (set(df['update'].unique()) - set(['textual', 'visual', pd.np.nan])):
