@@ -25,6 +25,8 @@ Sherlock takes in input a csv file of different time-series. The naming conventi
 1) `date` the date of the events (expressed in *dd/mm/yyyy* format, e.g. 12/30/2019).
 2) `search_downloads` downloads data coming from iTunes connect filtered by App Store Search source
 3) `search_impressions` impressions data coming from iTunes connect filtered by App Store Search source
+
+**Optional columns (if you do Apple Search Ads):**
 4) `asa_impressions` impressions coming from Apple Search Ads
 5) `asa` downloads coming from Apple Search Ads
 
