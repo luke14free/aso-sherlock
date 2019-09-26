@@ -7,6 +7,7 @@ from matplotlib.pylab import plt
 from pandas.errors import ParserError
 from pmprophet import PMProphet
 import numpy as np
+import pymc3 as pm
 import io, base64
 
 
@@ -15,6 +16,35 @@ def figure_to_base64(fig):
     fig.savefig(io_stream, format='png')
     io_stream.seek(0)
     return (b'data:image/png;base64, ' + base64.b64encode(io_stream.read())).decode()
+
+
+def plot_nowcast(model, updates):
+    fig = plt.figure(figsize=(20, 10))
+    y = model.trace['y_hat_%s' % model.name]
+    ddf = pd.DataFrame(
+        [
+            np.percentile(y, 50, axis=0),
+            np.max(y, axis=0),
+            np.min(y, axis=0),
+        ]
+    ).T
+    ddf["ds"] = model.data["ds"]
+    ddf.columns = ["y_hat", "y_low", "y_high", "ds"]
+    ddf["orig_y"] = model.data["y"]
+    ddf.plot("ds", "y_hat", ax=plt.gca())
+    plt.fill_between(
+        ddf["ds"].values,
+        ddf["y_low"].values.astype(float),
+        ddf["y_high"].values.astype(float),
+        alpha=0.3,
+    )
+    ddf.plot("ds", "orig_y", style="k.", ax=plt.gca(), alpha=0.3)
+    for update in updates:
+        plt.axvline(
+            update, color="C3", lw=1, ls="dotted"
+        )
+    plt.grid(axis="y")
+    return fig
 
 
 def plot_predict(prediction, original, updates):
@@ -38,7 +68,6 @@ def plot_predict(prediction, original, updates):
 
 
 def plot_seasonality(self, alpha: float, plot_kwargs: bool):
-    # two_tailed_alpha = int(alpha / 2 * 100)
     periods = list(set([float(i.split("_")[1]) for i in self.seasonality]))
 
     additive_ts, multiplicative_ts = self._fit_seasonality()
@@ -225,12 +254,18 @@ def run_sherlock() -> None:
             m.add_regressor(time_regressor)
 
         m.add_seasonality(7, 3)
-        m.fit(2000)
-        prediction = m.predict(forecasting_periods=0)
-        fig = plot_predict(prediction, df, [row['ds'] for _, row in df.iterrows() if row['update'] == 'visual'])
+        m._prepare_fit()
+        with m.model:
+            mean = pm.Deterministic('y_%s' % m.name, m.y)  # no scaling needed
+            hp_alpha = pm.HalfCauchy('y_alpha_%s' % m.name, 2.5)
+            hp_beta = pm.Deterministic('y_beta_%s' % m.name, hp_alpha * ((1 - mean) / mean))
+            pm.Beta("observed_%s" % m.name, hp_alpha, hp_beta, observed=df['y'])
+            pm.Deterministic('y_hat_%s' % m.name, mean)
+
+        m.fit(2000, finalize=False)
+        fig = plot_nowcast(m, [row['ds'] for _, row in df.iterrows() if row['update'] == 'visual'])
         plt.title('Conversion & Visual Updates')
         template_vars['visual_model'] = figure_to_base64(fig)
-        # plt.close(fig)
 
         for idx, time_regressor in enumerate(time_regressors):
             error = (pd.np.percentile(
@@ -282,8 +317,7 @@ def run_sherlock() -> None:
             m.add_seasonality(365, 5)
 
         m.fit(2000)
-        prediction = m.predict(forecasting_periods=0)
-        fig = plot_predict(prediction, df, [row['ds'] for _, row in df.iterrows() if row['update'] == 'textual'])
+        fig = plot_nowcast(m, [row['ds'] for _, row in df.iterrows() if row['update'] == 'textual'])
         plt.title('Downloads & Textual Updates')
         template_vars['textual_model'] = figure_to_base64(fig)
 
