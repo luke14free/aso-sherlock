@@ -38,11 +38,13 @@ Sherlock takes in input a csv file of different time-series. The naming conventi
 
 Usage is very simple, from the terminal run:
 
-`python sherlock.py example.csv`
+`pipenv shell` 
 
-Where `example.csv` is the file created as in the point above.
+to activate the virtual environment and:
 
-These are the available options (you can see them with `--help`)
+`python sherlock.py -i example.csv`
+
+To run the script. There are some options available:
 
 ```
 Options:
