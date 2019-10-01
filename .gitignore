@@ -1,6 +1,7 @@
 *.pyc
 *.pyo
 out.html
+report.html
 Pipfile.lock
 .DS_Store
 .idea

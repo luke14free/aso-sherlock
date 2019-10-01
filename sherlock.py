@@ -1,3 +1,5 @@
+from optparse import OptionParser
+
 import jinja2
 import pandas as pd
 import sys
@@ -5,156 +7,11 @@ import logging
 from matplotlib.pylab import plt
 
 from pandas.errors import ParserError
-from pmprophet import PMProphet
+from pmprophet import PMProphet, Sampler
 import numpy as np
 import pymc3 as pm
-import io, base64
 
-
-def figure_to_base64(fig):
-    io_stream = io.BytesIO()
-    fig.savefig(io_stream, format='png')
-    io_stream.seek(0)
-    return (b'data:image/png;base64, ' + base64.b64encode(io_stream.read())).decode()
-
-
-def plot_nowcast(model, updates):
-    fig = plt.figure(figsize=(20, 10))
-    y = model.trace['y_hat_%s' % model.name]
-    ddf = pd.DataFrame(
-        [
-            np.percentile(y, 50, axis=0),
-            np.max(y, axis=0),
-            np.min(y, axis=0),
-        ]
-    ).T
-    ddf["ds"] = model.data["ds"]
-    ddf.columns = ["y_hat", "y_low", "y_high", "ds"]
-    ddf["orig_y"] = model.data["y"]
-    ddf.plot("ds", "y_hat", ax=plt.gca())
-    plt.fill_between(
-        ddf["ds"].values,
-        ddf["y_low"].values.astype(float),
-        ddf["y_high"].values.astype(float),
-        alpha=0.3,
-    )
-    ddf.plot("ds", "orig_y", style="k.", ax=plt.gca(), alpha=0.3)
-    for update in updates:
-        plt.axvline(
-            update, color="C3", lw=1, ls="dotted"
-        )
-    plt.grid(axis="y")
-    return fig
-
-
-def plot_predict(prediction, original, updates):
-    fig = plt.figure(figsize=(20, 10))
-    prediction.plot("ds", "y_hat", ax=plt.gca())
-    prediction["orig_y"] = original["y"]
-    plt.fill_between(
-        prediction["ds"].values,
-        prediction["y_low"].values.astype(float),
-        prediction["y_high"].values.astype(float),
-        alpha=0.3,
-    )
-
-    prediction.plot("ds", "orig_y", style="k.", ax=plt.gca(), alpha=0.2)
-    for update in updates:
-        plt.axvline(
-            update, color="C3", lw=1, ls="dotted"
-        )
-    plt.grid(axis="y")
-    return fig
-
-
-def plot_seasonality(self, alpha: float, plot_kwargs: bool):
-    periods = list(set([float(i.split("_")[1]) for i in self.seasonality]))
-
-    additive_ts, multiplicative_ts = self._fit_seasonality()
-
-    all_seasonalities = [("additive", additive_ts)]
-    if len(self.multiplicative_data):
-        all_seasonalities.append(("multiplicative", multiplicative_ts))
-    for sn, ts in all_seasonalities:
-        if (sn == "multiplicative" and np.sum(ts) == 1) or (
-                sn == "additive" and np.sum(ts) == 0
-        ):
-            continue
-        ddf = pd.DataFrame(
-            np.vstack(
-                [
-                    np.percentile(ts[:, :, self.skip_first:], 50, axis=-1),
-                    np.percentile(
-                        ts[:, :, self.skip_first:], alpha / 2 * 100, axis=-1
-                    ),
-                    np.percentile(
-                        ts[:, :, self.skip_first:], (1 - alpha / 2) * 100, axis=-1
-                    ),
-                ]
-            ).T,
-            columns=[
-                "%s_%s" % (p, l)
-                for l in ["mid", "low", "high"]
-                for p in periods[::-1]
-            ],
-        )
-        ddf.loc[:, "ds"] = self.data["ds"]
-        all_figures = {}
-        for period in periods:
-            if int(period) == 0:
-                step = int(
-                    self.data["ds"].diff().mean().total_seconds() // float(period)
-                )
-            else:
-                step = int(period)
-            graph = ddf.head(step)
-            if period == 7:
-                ddf.loc[:, "dow"] = [i for i in ddf["ds"].dt.weekday]
-                graph = (
-                    ddf[
-                        [
-                            "dow",
-                            "%s_low" % period,
-                            "%s_mid" % period,
-                            "%s_high" % period,
-                        ]
-                    ]
-                        .groupby("dow")
-                        .mean()
-                        .sort_values("dow")
-                )
-                graph.loc[:, "ds"] = [
-                    ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]
-                    for i in graph.index
-                ]
-                graph = graph.sort_index()
-            fig = plt.figure(**plot_kwargs)
-            all_figures[period] = fig
-            graph.plot(
-                y="%s_mid" % period, x="ds", color="C0", legend=False, ax=plt.gca()
-            )
-            plt.grid()
-
-            if period == 7:
-                plt.xticks(range(7), graph["ds"].values)
-                plt.fill_between(
-                    np.arange(0, 7),
-                    graph["%s_low" % period].values.astype(float),
-                    graph["%s_high" % period].values.astype(float),
-                    alpha=0.3,
-                )
-            else:
-                plt.fill_between(
-                    graph["ds"].values,
-                    graph["%s_low" % period].values.astype(float),
-                    graph["%s_high" % period].values.astype(float),
-                    alpha=0.3,
-                )
-
-            plt.title("Model Seasonality (%s) for period: %s days" % (sn, period))
-            plt.gca().xaxis.label.set_visible(False)
-    return all_figures
-
+from helpers import plot_nowcast, figure_to_base64, safe_mean, plot_seasonality
 
 ERRORS = {
     "no_input": "No input data file was provided",
@@ -162,7 +19,9 @@ ERRORS = {
     "not_readable": "The input file is not readable (make sure it's a valid csv file)",
     "missing_columns": "The input data file is missing one or more mandatory columns: {}",
     "date_column_not_readable": "The date column is not readable, try using the format dd/mm/yyyy (e.g. 30/12/1990)",
-    "timespan_too_short": "Provide at least 7 days of data"
+    "timespan_too_short": "Provide at least 7 days of data",
+    "dls_less_than_0": "Downloads are below zero for certain dates. Check your data or allow outlier removal with -r",
+    "conversion_less_than_0": "The conversion is below zero for certain dates. Check your data or allow outlier removal with -r",
 }
 
 WARNINGS = {
@@ -208,9 +67,9 @@ def read_input_file(file_path: str) -> pd.DataFrame:
 
 
 def run_sherlock() -> None:
-    template_vars = {'seasonality': {}}
+    template_vars = {'textual_seasonality': {}, 'conversion_seasonality': {}}
 
-    df = read_input_file(sys.argv[1])
+    df = read_input_file(options.input_file)
     for unknown_update in (set(df['update'].unique()) - set(['textual', 'visual', pd.np.nan])):
         logging.warning(WARNINGS['update_not_understood'].format(unknown_update))
     time_span = (df['date'].max() - df['date'].min()).days
@@ -230,8 +89,27 @@ def run_sherlock() -> None:
             df['conversions'] = df['search_downloads'] - df['asa']
         else:
             df['impressions'] = df['search_impressions']
-            df['conversions'] = df['search_donwloads']
+            df['conversions'] = df['search_downloads']
         df['y'] = df['conversions'] / df['impressions']
+        df.index = df['ds']
+
+        if options.weekly:
+            df = df.resample('W').apply(safe_mean)
+
+        if options.sigma:
+            y = []
+            raw_y = df['y'].values
+            for idx, val in enumerate(raw_y):
+                if val < 0 or not (raw_y.mean() - options.sigma * raw_y.std()) < val < (
+                        raw_y.mean() + options.sigma * raw_y.std()):
+                    ts_slice = raw_y[idx - 20:idx + 20]
+                    y.append(np.median(ts_slice[ts_slice >= 0]))
+                else:
+                    y.append(val)
+            df['y'] = y
+        else:
+            if df['y'].min() < 0:
+                raise Exception(ERRORS['conversion_less_than_0'])
 
         time_regressors = []
         for _, row in df.iterrows():
@@ -243,8 +121,6 @@ def run_sherlock() -> None:
         m = PMProphet(
             df,
             growth=False,
-            n_changepoints=0,
-            seasonality_prior_scale=10,
             changepoints=[],
             name='sherlock_visual_conversion'
         )
@@ -253,7 +129,12 @@ def run_sherlock() -> None:
         for time_regressor in time_regressors:
             m.add_regressor(time_regressor)
 
-        m.add_seasonality(7, 3)
+        if not options.weekly:
+            m.add_seasonality(7, 7)
+
+        if time_span > 365:
+            m.add_seasonality(365, 5)
+
         m._prepare_fit()
         with m.model:
             mean = pm.Deterministic('y_%s' % m.name, m.y)  # no scaling needed
@@ -262,7 +143,9 @@ def run_sherlock() -> None:
             pm.Beta("observed_%s" % m.name, hp_alpha, hp_beta, observed=df['y'])
             pm.Deterministic('y_hat_%s' % m.name, mean)
 
-        m.fit(2000, finalize=False)
+        m.fit(10000 if options.sampler == Sampler.METROPOLIS else 2000,
+              method=Sampler.METROPOLIS if options.sampler == 'metropolis' else Sampler.NUTS,
+              finalize=False)
         fig = plot_nowcast(m, [row['ds'] for _, row in df.iterrows() if row['update'] == 'visual'])
         plt.title('Conversion & Visual Updates')
         template_vars['visual_model'] = figure_to_base64(fig)
@@ -281,9 +164,35 @@ def run_sherlock() -> None:
                 'error': pd.np.round(error * 100, 2),
             })
 
+            seasonality = {}
+            for period, fig in plot_seasonality(m, alpha=0.05, plot_kwargs={}).items():
+                seasonality[int(period)] = figure_to_base64(fig)
+            template_vars['conversion_seasonality'] = seasonality
+
     if 'textual' in df['update'].unique():
         df = _df.rename(columns={'date': 'ds', 'search_downloads': 'y'})
-        df['y'] = df['y'] - df['asa']
+        if 'asa' in df.columns:
+            df['y'] = df['y'] - df['asa']
+
+        if options.sigma:
+            y = []
+            raw_y = df['y'].values
+            for idx, val in enumerate(raw_y):
+                if val < 0 or not (raw_y.mean() - options.sigma * raw_y.std()) < val < (
+                        raw_y.mean() + options.sigma * raw_y.std()):
+                    ts_slice = raw_y[idx - 20:idx + 20]
+                    y.append(np.median(ts_slice[ts_slice >= 0]))
+                else:
+                    y.append(val)
+            df['y'] = y
+        else:
+            if df['y'].min() < 0:
+                raise Exception(ERRORS['dls_less_than_0'])
+
+        df.index = df['ds']
+        if options.weekly:
+            df = df.resample('W').apply(safe_mean)
+
         time_regressors = []
         for _, row in df.iterrows():
             if row['update'] == 'textual':
@@ -294,11 +203,9 @@ def run_sherlock() -> None:
 
         m = PMProphet(
             df,
-            growth=False,
-            n_changepoints=0,
+            growth=True,
             name='sherlock_textual',
-            seasonality_prior_scale=10,
-            regressors_prior_scale=10
+            positive_regressors_coefficients=True
         )
         m.skip_first = 1000
 
@@ -308,15 +215,14 @@ def run_sherlock() -> None:
         for extra_column in extra_columns:
             m.add_regressor(extra_column)
 
-        m.add_seasonality(7, 5)
-
-        if time_span > 30:
-            m.add_seasonality(30, 5)
+        if not options.weekly:
+            m.add_seasonality(7, 7)
 
         if time_span > 365:
-            m.add_seasonality(365, 5)
+            m.add_seasonality(365, 7)
 
-        m.fit(2000)
+        m.fit(10000 if options.sampler == Sampler.METROPOLIS else 2000,
+              method=Sampler.METROPOLIS if options.sampler == 'metropolis' else Sampler.NUTS)
         fig = plot_nowcast(m, [row['ds'] for _, row in df.iterrows() if row['update'] == 'textual'])
         plt.title('Downloads & Textual Updates')
         template_vars['textual_model'] = figure_to_base64(fig)
@@ -352,7 +258,8 @@ def run_sherlock() -> None:
         seasonality = {}
         for period, fig in plot_seasonality(m, alpha=0.05, plot_kwargs={}).items():
             seasonality[int(period)] = figure_to_base64(fig)
-        template_vars['seasonality'] = seasonality
+        template_vars['textual_seasonality'] = seasonality
+
     template_vars['summary'] = summary
 
     templateLoader = jinja2.FileSystemLoader(searchpath="./")
@@ -360,14 +267,30 @@ def run_sherlock() -> None:
     template = templateEnv.get_template("template.html")
     outputText = template.render(**template_vars)
 
-    open('report.html', 'w').write(outputText)
+    open(options.output_file, 'w').write(outputText)
     return outputText
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
+    parser = OptionParser()
+    parser.add_option("-i", "--input-file", dest="input_file",
+                      help="Input CSV file", metavar="FILE")
+    parser.add_option("-o", "--output-file", dest="output_file",
+                      help="Output report file (in html format)", metavar="FILE", default='report.html')
+    parser.add_option("-s", "--sampler", dest='sampler', choices=['metropolis', 'nuts'], default='nuts',
+                      help='Sampler to use ("nuts" is slower but more precise and suggested, otherwise "metropolis")')
+    parser.add_option("-n", "--no-asa", dest='no_asa', action="store_true", default=False,
+                      help="Do not use ASA as an additional regressor (better seasonality fits)")
+    parser.add_option("-w", "--weekly", dest='weekly', action="store_true", default=False,
+                      help="Run the analysis on a weekly resampling")
+    parser.add_option("-r", "--remove-outliers-sigma", dest='sigma', default=False, type='float',
+                      help='''Remove outliers at more than X sigma from the mean (suggested values range between 1.5-3.5).
+Default value is: 0 that means that Sherlock will not remove outliers''')
+
+    (options, args) = parser.parse_args()
+    if not options.input_file:
         logging.error(ERRORS['no_input'])
         sys.exit()
-    if len(sys.argv) == 3 and sys.argv[2] == '--no-asa':
+    if options.no_asa:
         OPTIONAL_COLUMNS.append('asa')
     run_sherlock()

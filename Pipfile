@@ -10,6 +10,7 @@ pmprophet = "==0.2.8"
 arviz = "*"
 pymc3 = "*"
 jinja2 = "*"
+matplotlib = "*"
 
 [requires]
 python_version = "3.6"

@@ -37,7 +37,7 @@
 <div class="list-group" style="width: 300px;">
     {% if textual_model %}<a class="list-group-item" href="#textual-updates">Textual Updates</a>{% endif %}
     {% if visual_model %}<a class="list-group-item" href="#visual-updates">Visual Updates</a>{% endif %}
-    {% if seasonality[7] %}<a class="list-group-item" href="#seasonality-analysis">Seasonality Analysis</a>{% endif %}
+    {% if textual_seasonality[7] %}<a class="list-group-item" href="#seasonality-analysis">Seasonality Analysis</a>{% endif %}
     {% if extra_regressors_plots %}<a class="list-group-item" href="#uplift-analysis">Uplift Analysis</a>{% endif %}
     <a class="list-group-item" href="#summary">Summary</a>
 </div>
@@ -58,7 +58,7 @@
 <img src="{{ visual_model }}" alt="visual_model"/>
 {% endif %}
 
-{% if seasonality[7] %}
+{% if textual_seasonality[7] %}
 <h3 id="seasonality-analysis">Seasonality Analysis</h3>
 <p>
     Seasonality is a common phenomenon to observe in apps, some make more downloads during the weekdays while other
@@ -69,9 +69,25 @@
     <strong>Note:</strong> if you have fitted a regressor that is also very seasonal (e.g. Apple Search Ads) the graph below
     will not be an accurate representation of your app seasonality
 </p>
-<h4>Weekly Seasonality</h4><img src="{{ seasonality[7] }}" alt="seasonality_7_days"/>
-{% if 30 in seasonality %}<h4>Monthly Seasonality</h4><img src="{{ seasonality[30] }}" alt="seasonality_30days"/>{% endif %}
-{% if 365 in seasonality %}<h4>Yearly Seasonality</h4><img src="{{ seasonality[365] }}" alt="seasonality_365_days"/>{% endif %}
+<h4>Weekly Seasonality</h4>
+<h6>From Downloads</h6>
+<img src="{{ textual_seasonality[7] }}" alt="t_seasonality_7_days"/>
+<h6>From Conversion</h6>
+<img src="{{ conversion_seasonality[7] }}" alt="c_seasonality_7_days"/>
+{% if 30 in textual_seasonality %}
+    <h4>Monthly Seasonality</h4>
+    <h6>From Downloads</h6>
+    <img src="{{ textual_seasonality[30] }}" alt="t_seasonality_30days"/>
+    <h6>From Conversion</h6>
+    <img src="{{ conversion_seasonality[30] }}" alt="c_seasonality_30days"/>
+{% endif %}
+{% if 365 in textual_seasonality %}
+    <h4>Yearly Seasonality</h4>
+    <h6>From Downloads</h6>
+    <img src="{{ textual_seasonality[365] }}" alt="t_seasonality_365_days"/>
+    <h6>From Conversion</h6>
+    <img src="{{ conversion_seasonality[365] }}" alt="c_seasonality_365_days"/>
+{% endif %}
 {% endif %}
 
 {% if extra_regressors_plots %}
@@ -112,7 +128,7 @@
     {% for line in summary %}
     <tr>
         <td>{{line['name']}}</td>
-        <td>{% if line['error'] > line['median'] %} Not Significant {% else %} Significant {% endif %}</td>
+        <td>{% if line['error']|abs > line['median']|abs %} Not Significant {% else %} Significant {% endif %}</td>
         <td>{{line['median']}}%</td>
         <td>{{line['error']}}%</td>
     </tr>
