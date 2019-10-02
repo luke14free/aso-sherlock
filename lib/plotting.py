@@ -1,15 +1,6 @@
 import pandas as pd
-from matplotlib.pylab import plt
-
+import matplotlib.pylab as plt
 import numpy as np
-import io, base64
-
-
-def figure_to_base64(fig):
-    io_stream = io.BytesIO()
-    fig.savefig(io_stream, format='png')
-    io_stream.seek(0)
-    return (b'data:image/png;base64, ' + base64.b64encode(io_stream.read())).decode()
 
 
 def plot_nowcast(model, updates):
@@ -150,14 +141,3 @@ def plot_seasonality(self, alpha: float, plot_kwargs: bool):
             plt.title("Model Seasonality (%s) for period: %s days" % (sn, period))
             plt.gca().xaxis.label.set_visible(False)
     return all_figures
-
-
-def safe_mean(x):
-    try:
-        return np.mean(x)
-    except TypeError:
-        x = x.dropna()
-        if x.empty:
-            return None
-        else:
-            return x[0]
