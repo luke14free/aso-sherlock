@@ -142,8 +142,7 @@ def run_sherlock() -> None:
             hp_beta = pm.Deterministic('y_beta_%s' % m.name, hp_alpha * ((1 - mean) / mean))
             pm.Beta("observed_%s" % m.name, hp_alpha, hp_beta, observed=df['y'])
             pm.Deterministic('y_hat_%s' % m.name, mean)
-
-        m.fit(10000 if options.sampler == Sampler.METROPOLIS else 2000,
+        m.fit(20000 if options.sampler == 'metropolis' else 2000,
               method=Sampler.METROPOLIS if options.sampler == 'metropolis' else Sampler.NUTS,
               finalize=False)
         fig = plot_nowcast(m, [row['ds'] for _, row in df.iterrows() if row['update'] == 'visual'])
@@ -205,6 +204,7 @@ def run_sherlock() -> None:
             df,
             growth=True,
             name='sherlock_textual',
+            seasonality_prior_scale=5,
             positive_regressors_coefficients=True
         )
         m.skip_first = 1000
@@ -221,7 +221,7 @@ def run_sherlock() -> None:
         if time_span > 365:
             m.add_seasonality(365, 7)
 
-        m.fit(10000 if options.sampler == Sampler.METROPOLIS else 2000,
+        m.fit(20000 if options.sampler == 'metropolis' else 2000,
               method=Sampler.METROPOLIS if options.sampler == 'metropolis' else Sampler.NUTS)
         fig = plot_nowcast(m, [row['ds'] for _, row in df.iterrows() if row['update'] == 'textual'])
         plt.title('Downloads & Textual Updates')
@@ -260,6 +260,8 @@ def run_sherlock() -> None:
             seasonality[int(period)] = figure_to_base64(fig)
         template_vars['textual_seasonality'] = seasonality
 
+    if options.app_name:
+        template_vars['app_name'] = options.app_name
     template_vars['summary'] = summary
 
     templateLoader = jinja2.FileSystemLoader(searchpath="./")
@@ -273,6 +275,8 @@ def run_sherlock() -> None:
 
 if __name__ == '__main__':
     parser = OptionParser()
+    parser.add_option("-a", "--app-name", dest='app_name', default=None,
+                      help="Specify the app name if you want a more personalized report")
     parser.add_option("-i", "--input-file", dest="input_file",
                       help="Input CSV file", metavar="FILE")
     parser.add_option("-o", "--output-file", dest="output_file",

@@ -1,6 +1,6 @@
 <html>
 <head>
-    <title>Sherlock - The ASO Inspector</title>
+    <title>{% if app_name %}{{ app_name }} - by {% endif %}Sherlock - The ASO Inspector</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
@@ -27,7 +27,7 @@
 </head>
 
 <body style="max-width: 768px; margin-right: auto; margin-left: auto; margin-top:30px;">
-<h2>Sherlock - The ASO Inspector</h2>
+<h2>{% if app_name %}{{ app_name }} - by {% endif %}Sherlock - The ASO Inspector</h2>
 <p>An <a target="_blank" href="https://github.com/luke14free/aso-sherlock">open source</a> tool by <a href="https://www.linkedin.com/in/lgiacomel/">Luca
     Giacomel</a>.
     Based on <a target="_blank" href="https://github.com/luke14free/pm-prophet">pm-prophet</a>,
@@ -46,7 +46,7 @@
 <h3 id="textual-updates">Textual Updates</h3>
 <p>This model shows a fit of the downloads model, using as predictors the seasonality trends, paid user acquisition and
     the textual updates performed over time. Red lines represent textual updates dates.</p>
-<p><strong>Note:</strong> impact of updates are shown in the <a href="#summary">summary</a>.</p>
+<p>The impact of updates is shown in the <a href="#summary">summary</a>.</p>
 <img src="{{ textual_model }}" alt="textual_model"/>
 {% endif %}
 
@@ -54,7 +54,9 @@
 <h3 id="visual-updates">Visual Updates</h3>
 <p>This model shows a fit of the conversion model, using as predictors the weekly seasonality trend and
     the visual updates performed over time. Red lines represent visual updates dates.</p>
-<p><strong>Note:</strong> impact of updates are shown in the <a href="#summary">summary</a>.</p>
+<p>The impact of updates is shown in the <a href="#summary">summary</a>.</p>
+<p><strong>IMPORTANT Notice:</strong> please note that it's very likely that conversion reported by ASc before 1st March 2019 is not reliable
+    as the App Store was counting impressions for apps that were not being shown in the search results (impressions were over-reported).
 <img src="{{ visual_model }}" alt="visual_model"/>
 {% endif %}
 

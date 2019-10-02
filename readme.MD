@@ -49,6 +49,9 @@ To run the script. There are some options available:
 ```
 Options:
   -h, --help            show this help message and exit
+  -a APP_NAME, --app-name=APP_NAME
+                        Specify the app name if you want a more personalized
+                        report
   -i FILE, --input-file=FILE
                         Input CSV file
   -o FILE, --output-file=FILE
@@ -63,8 +66,8 @@ Options:
                         Remove outliers at more than X sigma from the mean
                         (suggested values range between 1.5-3.5). Default
                         value is: 0 that means that Sherlock will not remove
-                        outliers       
- ```
+                        outliers
+```
                         
 ### Output
 
