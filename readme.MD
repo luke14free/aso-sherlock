@@ -9,6 +9,8 @@ It can produce curated reports about your app and it's traffic, including:
 * Seasonality
 * Uplift
 
+**Sample output**: is demostrated in the file `examples/report.html` (which is a fit of sherlock on some fake data contained in `examples/example.csv`).
+
 ### Installation
 
 1) [Install python 3](https://www.python.org/downloads/)
@@ -67,6 +69,13 @@ Options:
                         (suggested values range between 1.5-3.5). Default
                         value is: 0 that means that Sherlock will not remove
                         outliers
+  -l ALPHA, --significance-level=ALPHA
+                        The significance level for the analysis (default is
+                        0.05)
+  -k SEASONALITY_SCALE, --seasonality-scale=SEASONALITY_SCALE
+                        The scale of the seasonality, if it fits poorly
+                        because you have  great variance due to seasonality
+                        increase this
 ```
                         
 ### Output

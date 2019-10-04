@@ -11,7 +11,6 @@ arviz = "*"
 pymc3 = "*"
 jinja2 = "*"
 matplotlib = "*"
-mkl-service = "*"
 
 [requires]
 python_version = "3.6"
