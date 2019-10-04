@@ -73,9 +73,9 @@ Options:
                         The significance level for the analysis (default is
                         0.05)
   -k SEASONALITY_SCALE, --seasonality-scale=SEASONALITY_SCALE
-                        The scale of the seasonality, if it fits poorly
-                        because you have  great variance due to seasonality
-                        increase this
+                        The scale of the seasonality, if seasonality fits poorly
+                        because you have great variance due to other factors, you can
+                        increase this (default is 2.5, good values are between that and 10)
 ```
                         
 ### Output
