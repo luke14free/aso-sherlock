@@ -99,7 +99,7 @@ def create_model(model_name: str, data: pd.DataFrame, growth: bool, regressors: 
         changepoints=[] if not changepoints else changepoints,
         name=model_name,
     )
-    #model.skip_first = 200 if options.sampler == 'nuts' else 10000
+    # model.skip_first = 200 if options.sampler == 'nuts' else 10000
 
     for regressor in regressors:
         model.add_regressor(regressor)
@@ -193,7 +193,8 @@ def textual_update_analysis(df: pd.DataFrame, extra_columns: List) -> Tuple[Dict
     for i in range(len(time_regressors), len(time_regressors) + len(extra_columns)):
         fig = plt.figure()
         plt.grid()
-        plt.hist(model.trace['regressors_{}'.format(model.name)][:, i] * 100, bins=30, alpha=0.8, histtype='stepfilled')
+        plt.hist(model.trace['regressors_{}'.format(model.name)][:, i] * 100, bins=30, alpha=0.8, histtype='stepfilled',
+                 density=True)
         plt.axvline(np.median(model.trace['regressors_{}'.format(model.name)][:, i]) * 100, color="C3", lw=1,
                     ls="dotted")
         plt.title("{} (in %)".format(extra_columns[i - len(time_regressors)]))
@@ -227,15 +228,13 @@ def run_sherlock() -> None:
     extra_columns = list(set(df.columns) - set(REQUIRED_COLUMNS + OPTIONAL_COLUMNS + ['date', 'search_downloads']))
     summary = []
 
-    if 'visual' in df['update'].unique():
-        tv, s = visual_update_analysis(df.copy())
-        template_vars.update(tv)
-        summary.extend(s)
+    tv, s = visual_update_analysis(df.copy())
+    template_vars.update(tv)
+    summary.extend(s)
 
-    if 'textual' in df['update'].unique():
-        tv, s = textual_update_analysis(df.copy(), extra_columns)
-        template_vars.update(tv)
-        summary.extend(s)
+    tv, s = textual_update_analysis(df.copy(), extra_columns)
+    template_vars.update(tv)
+    summary.extend(s)
 
     if options.app_name:
         template_vars['app_name'] = options.app_name
@@ -256,8 +255,8 @@ if __name__ == '__main__':
                       help="Input CSV file", metavar="FILE")
     parser.add_option("-o", "--output-file", dest="output_file",
                       help="Output report file (in html format)", metavar="FILE", default='report.html')
-    parser.add_option("-s", "--sampler", dest='sampler', choices=['metropolis', 'nuts'], default='nuts',
-                      help='Sampler to use ("nuts" is slower but more precise and suggested, otherwise "metropolis")')
+    parser.add_option("-s", "--sampler", dest='sampler', choices=['metropolis', 'nuts'], default='metropolis',
+                      help='Sampler to use ("nuts" is slower but more precise, default "metropolis")')
     parser.add_option("-n", "--no-asa", dest='no_asa', action="store_true", default=False,
                       help="Do not use ASA as an additional regressor (better seasonality fits)")
     parser.add_option("-w", "--weekly", dest='weekly', action="store_true", default=False,
