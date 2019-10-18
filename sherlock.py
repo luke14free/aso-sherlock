@@ -5,6 +5,7 @@ import jinja2
 import pandas as pd
 import sys
 import logging
+
 from matplotlib.pylab import plt
 
 from pandas.errors import ParserError
@@ -132,7 +133,7 @@ def visual_update_analysis(df: pd.DataFrame) -> Tuple[Dict[str, str], List[
 
     time_regressors = []
     for _, row in df.iterrows():
-        if row['update'] == 'visual':
+        if row['update'] == 'visual' or row['update'] == 'all':
             additional_regressor = '{} (visual)'.format(str(row['ds']).split(" ")[0])
             df[additional_regressor] = [1 if other_row['ds'] >= row['ds'] else 0 for
                                         _, other_row in df.iterrows()]
@@ -141,7 +142,8 @@ def visual_update_analysis(df: pd.DataFrame) -> Tuple[Dict[str, str], List[
     model = create_model('sherlock_visual', df, 1.0, False, time_regressors)
     conversion_model = fit_beta_regression(model, df)
 
-    fig = plot_nowcast(conversion_model, [row['ds'] for _, row in df.iterrows() if row['update'] == 'visual'])
+    fig = plot_nowcast(conversion_model,
+                       [row['ds'] for _, row in df.iterrows() if row['update'] == 'visual' or row['update'] == 'all'])
     plt.title('Conversion & Visual Updates')
     template_vars['visual_model'] = figure_to_base64(fig)
 
@@ -170,7 +172,7 @@ def textual_update_analysis(df: pd.DataFrame, extra_columns: List) -> Tuple[Dict
 
     time_regressors = []
     for _, row in df.iterrows():
-        if row['update'] == 'textual':
+        if row['update'] == 'textual' or row['update'] == 'all':
             additional_regressor = '{} (text)'.format(str(row['ds']).split(" ")[0])
             df[additional_regressor] = [other_row['y'] if other_row['ds'] >= row['ds'] else 0 for
                                         _, other_row in df.iterrows()]
@@ -183,7 +185,8 @@ def textual_update_analysis(df: pd.DataFrame, extra_columns: List) -> Tuple[Dict
               method=Sampler.METROPOLIS if options.sampler == 'metropolis' else Sampler.NUTS,
               step_kwargs={'compute_convergence_checks': False} if options.sampler == 'metropolis' else {})
 
-    fig = plot_nowcast(model, [row['ds'] for _, row in df.iterrows() if row['update'] == 'textual'])
+    fig = plot_nowcast(model,
+                       [row['ds'] for _, row in df.iterrows() if row['update'] == 'textual' or row['update'] == 'all'])
     plt.title('Downloads & Textual Updates')
     template_vars['textual_model'] = figure_to_base64(fig)
 
@@ -217,7 +220,8 @@ def run_sherlock() -> None:
     template_vars = {'textual_seasonality': {}, 'conversion_seasonality': {}}
 
     df = read_input_file(options.input_file)
-    for unknown_update in (set(df['update'].unique()) - {'textual', 'visual', pd.np.nan}):
+    df['update'] = df['update'].str.lower()
+    for unknown_update in (set(df['update'].unique()) - {'textual', 'visual', pd.np.nan, 'all'}):
         logging.warning(WARNINGS['update_not_understood'].format(unknown_update))
     time_span = (df['date'].max() - df['date'].min()).days
     if time_span < 7:
@@ -277,4 +281,10 @@ great variance due to seasonality increase this. By default this is automaticall
         sys.exit()
     if options.no_asa:
         OPTIONAL_COLUMNS.append('asa')
-    run_sherlock()
+
+    try:
+        run_sherlock()
+    except pm.exceptions.SamplingError:
+        print('NUTS cannot model the data, retrying with metropolis')
+        options.sampler = 'metropolis'
+        run_sherlock()
