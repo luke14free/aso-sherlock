@@ -26,8 +26,9 @@ Sherlock takes in input a csv file of different time-series. The naming conventi
 **Required columns:**
 
 1) `date` the date of the events (expressed in *dd/mm/yyyy* format, e.g. 12/30/2019).
-2) `search_downloads` downloads data coming from iTunes connect filtered by App Store Search source
-3) `search_impressions` impressions data coming from iTunes connect filtered by App Store Search source
+2) `update` a column with value `textual`, `visual` or `all` (i.e. visual and textual) to tell sherlock what type of update was done in that particular date (in lowercase!).
+3) `search_downloads` downloads data coming from iTunes connect filtered by App Store Search source
+4) `search_impressions` impressions data coming from iTunes connect filtered by App Store Search source
 
 **Optional columns (if you do Apple Search Ads):**
 
@@ -59,8 +60,8 @@ Options:
   -o FILE, --output-file=FILE
                         Output report file (in html format)
   -s SAMPLER, --sampler=SAMPLER
-                        Sampler to use ("nuts" is slower but more precise and
-                        suggested, otherwise "metropolis")
+                        Sampler to use ("nuts" is slower but more precise,
+                        default "metropolis")
   -n, --no-asa          Do not use ASA as an additional regressor (better
                         seasonality fits)
   -w, --weekly          Run the analysis on a weekly resampling
@@ -73,9 +74,10 @@ Options:
                         The significance level for the analysis (default is
                         0.05)
   -k SEASONALITY_SCALE, --seasonality-scale=SEASONALITY_SCALE
-                        The scale of the seasonality, if seasonality fits poorly
-                        because you have great variance due to other factors, you can
-                        increase this (default is 2.5, good values are between that and 10)
+                        The scale of the seasonality, if it fits poorly
+                        because you have  great variance due to seasonality
+                        increase this. By default this is automatically
+                        computed
 ```
                         
 ### Output
