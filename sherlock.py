@@ -90,16 +90,15 @@ def summary_from_model_regressors(model: PMProphet, regressors: Union[List, Tupl
     return summary
 
 
-def create_model(model_name: str, data: pd.DataFrame, growth: bool, regressors: Union[List, Tuple] = (),
-                 changepoints: Union[List, Tuple] = ()) -> PMProphet:
+def create_model(model_name: str, data: pd.DataFrame, seasonality_scale: float, growth: bool,
+                 regressors: Union[List, Tuple] = (), changepoints: Union[List, Tuple] = ()) -> PMProphet:
     model = PMProphet(
         data,
         growth=growth,
-        seasonality_prior_scale=options.seasonality_scale,
+        seasonality_prior_scale=seasonality_scale,
         changepoints=[] if not changepoints else changepoints,
         name=model_name,
     )
-    # model.skip_first = 200 if options.sampler == 'nuts' else 10000
 
     for regressor in regressors:
         model.add_regressor(regressor)
@@ -139,7 +138,7 @@ def visual_update_analysis(df: pd.DataFrame) -> Tuple[Dict[str, str], List[
                                         _, other_row in df.iterrows()]
             time_regressors.append(additional_regressor)
 
-    model = create_model('sherlock_visual', df, False, time_regressors)
+    model = create_model('sherlock_visual', df, 1.0, False, time_regressors)
     conversion_model = fit_beta_regression(model, df)
 
     fig = plot_nowcast(conversion_model, [row['ds'] for _, row in df.iterrows() if row['update'] == 'visual'])
@@ -177,7 +176,8 @@ def textual_update_analysis(df: pd.DataFrame, extra_columns: List) -> Tuple[Dict
                                         _, other_row in df.iterrows()]
             time_regressors.append(additional_regressor)
 
-    model = create_model('sherlock_textual', df, True, time_regressors + extra_columns)
+    seasonality_scale = df['y'].std() if options.seasonality_scale == 0 else options.seasonality_scale
+    model = create_model('sherlock_textual', df, seasonality_scale, True, time_regressors + extra_columns)
 
     model.fit(10000 if options.sampler == 'metropolis' else 2000,
               method=Sampler.METROPOLIS if options.sampler == 'metropolis' else Sampler.NUTS,
@@ -266,9 +266,9 @@ if __name__ == '__main__':
 Default value is: 0 that means that Sherlock will not remove outliers''')
     parser.add_option("-l", "--significance-level", dest='alpha', default=0.05, type='float',
                       help="The significance level for the analysis (default is 0.05)")
-    parser.add_option("-k", "--seasonality-scale", dest='seasonality_scale', default=5.0, type='float',
+    parser.add_option("-k", "--seasonality-scale", dest='seasonality_scale', default=0, type='float',
                       help="""The scale of the seasonality, if it fits poorly because you have 
-great variance due to seasonality increase this""")
+great variance due to seasonality increase this. By default this is automatically computed""")
 
     (options, args) = parser.parse_args()
 
